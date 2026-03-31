@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Velocity IDE</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── THEME ─────────────────────────────────────────────────────────────── */
+:root {
+  --accent:      #6c63ff;
+  --accent-dim:  #554ecc;
+  --accent-mute: rgba(108,99,255,0.12);
+  --green:       #34c77b;
+  --red:         #e05c5c;
+  --yellow:      #e8b84b;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+  --radius: 8px;
+  --trans: 0.15s ease;
+}
+[data-theme="dark"] {
+  --bg:      #111318;
+  --bg2:     #16191f;
+  --bg3:     #1c2029;
+  --bg4:     #222736;
+  --border:  #252b38;
+  --border2: #2e3547;
+  --text:    #c9cdd8;
+  --text2:   #6b7490;
+  --text3:   #353d52;
+  --inv:     #ffffff;
+}
+[data-theme="light"] {
+  --bg:      #f0f2f5;
+  --bg2:     #ffffff;
+  --bg3:     #e8eaf0;
+  --bg4:     #dde0eb;
+  --border:  #dce0eb;
+  --border2: #c8ccdb;
+  --text:    #1a1e2e;
+  --text2:   #606880;
+  --text3:   #b8bece;
+  --inv:     #000000;
+}
+
+/* ── RESET ─────────────────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--sans);}
+button{font-family:var(--sans);cursor:pointer;border:none;background:none;}
+input,textarea{font-family:var(--mono);outline:none;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+::-webkit-scrollbar-track{background:transparent;}
+
+/* ── SHELL ─────────────────────────────────────────────────────────────── */
+.shell{
+  display:grid;
+  grid-template-rows:48px 1fr 22px;
+  grid-template-columns:52px 220px 1fr;
+  grid-template-areas:
+    "header header header"
+    "actbar sidebar  body"
+    "status status  status";
+  height:100vh;
+}
+
+/* ── HEADER ────────────────────────────────────────────────────────────── */
+.header{
+  grid-area:header;
+  background:var(--bg2);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+  padding:0 14px;z-index:30;
+}
+
+/* Logo SVG wordmark */
+.logo{display:flex;align-items:center;gap:9px;text-decoration:none;}
+.logo-icon{
+  width:28px;height:28px;border-radius:6px;
+  background:var(--accent);display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.logo-icon svg{width:16px;height:16px;fill:none;stroke:#fff;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}
+.logo-text{font-size:15px;font-weight:600;letter-spacing:-0.3px;color:var(--text);}
+
+.vsep{width:1px;height:22px;background:var(--border2);flex-shrink:0;}
+
+/* Tabs */
+.tabs{display:flex;align-items:center;gap:2px;flex:1;overflow-x:auto;scrollbar-width:none;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{
+  display:flex;align-items:center;gap:5px;
+  padding:5px 11px;border-radius:6px;border:1px solid transparent;
+  font-family:var(--mono);font-size:11.5px;color:var(--text2);
+  cursor:pointer;white-space:nowrap;flex-shrink:0;
+  transition:all var(--trans);
+}
+.tab:hover{background:var(--bg3);color:var(--text);}
+.tab.active{background:var(--bg3);border-color:var(--border2);color:var(--text);}
+.tab .dot{width:5px;height:5px;border-radius:50%;background:var(--accent);display:none;}
+.tab.dirty .dot{display:block;}
+.tab .x{
+  font-size:10px;color:var(--text3);border-radius:3px;
+  width:13px;height:13px;display:flex;align-items:center;justify-content:center;
+  opacity:0;transition:all 0.1s;
+}
+.tab:hover .x{opacity:1;}
+.tab .x:hover{background:rgba(224,92,92,0.15);color:var(--red);}
+.new-tab{
+  width:24px;height:24px;display:flex;align-items:center;justify-content:center;
+  border-radius:5px;border:1px dashed var(--border2);color:var(--text3);
+  font-size:15px;transition:all var(--trans);flex-shrink:0;
+}
+.new-tab:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-mute);}
+
+/* Header right */
+.h-right{display:flex;align-items:center;gap:8px;margin-left:8px;flex-shrink:0;}
+.btn{
+  display:flex;align-items:center;gap:5px;
+  padding:6px 13px;border-radius:var(--radius);
+  font-size:13px;font-weight:500;
+  transition:all var(--trans);white-space:nowrap;
+}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{background:var(--accent-dim);transform:translateY(-1px);}
+.btn-primary:active{transform:none;}
+.btn-primary.busy{opacity:0.55;pointer-events:none;}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border2);}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-mute);}
+.kbd{font-family:var(--mono);font-size:10px;background:var(--bg);border:1px solid var(--border2);border-radius:3px;padding:1px 4px;color:var(--text3);}
+
+/* Theme pill */
+.theme-btn{
+  display:flex;align-items:center;gap:6px;
+  padding:5px 10px;border-radius:20px;
+  border:1px solid var(--border2);color:var(--text2);font-size:12px;
+  transition:all var(--trans);
+}
+.theme-btn:hover{border-color:var(--accent);color:var(--accent);}
+.theme-btn svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;}
+
+/* ── ACTIVITY BAR ──────────────────────────────────────────────────────── */
+.actbar{
+  grid-area:actbar;
+  background:var(--bg2);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;align-items:center;
+  padding:8px 0;gap:4px;
+}
+.ab-btn{
+  width:36px;height:36px;display:flex;align-items:center;justify-content:center;
+  border-radius:7px;color:var(--text3);transition:all var(--trans);position:relative;
+}
+.ab-btn:hover{background:var(--bg3);color:var(--text2);}
+.ab-btn.active{background:var(--accent-mute);color:var(--accent);}
+.ab-btn svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+
+/* ── SIDEBAR ───────────────────────────────────────────────────────────── */
+.sidebar{
+  grid-area:sidebar;
+  background:var(--bg2);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.sidebar-panel{display:none;flex-direction:column;flex:1;overflow:hidden;}
+.sidebar-panel.visible{display:flex;}
+
+.sb-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px 6px;
+  font-size:10px;font-weight:600;letter-spacing:1px;
+  text-transform:uppercase;color:var(--text3);flex-shrink:0;
+}
+.sb-head button{font-size:16px;color:var(--text3);border-radius:4px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;transition:all var(--trans);}
+.sb-head button:hover{background:var(--bg3);color:var(--text);}
+
+/* Files panel */
+.file-list{overflow-y:auto;flex:1;}
+.sf{
+  display:flex;align-items:center;gap:7px;
+  padding:5px 14px;font-family:var(--mono);font-size:11.5px;
+  color:var(--text2);cursor:pointer;transition:all var(--trans);
+}
+.sf:hover{background:var(--bg3);color:var(--text);}
+.sf.active{background:var(--accent-mute);color:var(--accent);}
+.sf .sf-dot{width:5px;height:5px;border-radius:50%;background:var(--accent);margin-left:auto;display:none;flex-shrink:0;}
+.sf.dirty .sf-dot{display:block;}
+.sf-icon{font-size:11px;flex-shrink:0;opacity:0.7;}
+
+.s-sep{height:1px;background:var(--border);margin:5px 10px;flex-shrink:0;}
+
+/* Run options inside sidebar */
+.run-opts{padding:8px 10px;display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
+.opt-label{font-size:10px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:var(--text3);padding:0 4px 3px;}
+.opt-input{
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:6px;padding:6px 9px;
+  font-family:var(--mono);font-size:11.5px;color:var(--text);
+  width:100%;transition:border-color var(--trans);
+}
+.opt-input:focus{border-color:var(--accent);}
+.opt-input::placeholder{color:var(--text3);}
+.opt-hint{font-size:10px;color:var(--text3);padding:0 4px;font-family:var(--mono);}
+
+/* Docs panel */
+.docs-scroll{overflow-y:auto;flex:1;padding:8px 10px;}
+.doc-section{margin-bottom:14px;}
+.doc-section-title{
+  font-size:10px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;
+  color:var(--text3);padding:4px 4px 6px;
+}
+.doc-row{
+  display:flex;flex-direction:column;gap:1px;
+  padding:5px 7px;border-radius:5px;margin-bottom:2px;
+  background:var(--bg3);border:1px solid var(--border);
+}
+.doc-code{font-family:var(--mono);font-size:10.5px;color:var(--accent);word-break:break-all;}
+.doc-desc{font-family:var(--mono);font-size:10px;color:var(--text3);}
+.kw-grid{display:grid;grid-template-columns:1fr 1fr;gap:3px;}
+.kw-item{
+  padding:4px 6px;border-radius:4px;
+  background:var(--bg3);border:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;
+}
+.kw-vel{font-family:var(--mono);font-size:10.5px;color:var(--accent);}
+.kw-en{font-family:var(--mono);font-size:10px;color:var(--text3);}
+.type-table{width:100%;border-collapse:collapse;}
+.type-table td{padding:3px 6px;font-family:var(--mono);font-size:10.5px;border-bottom:1px solid var(--border);}
+.type-table td:first-child{color:var(--accent);}
+.type-table td:last-child{color:var(--text3);}
+
+/* ── BODY ──────────────────────────────────────────────────────────────── */
+.body{grid-area:body;display:flex;flex-direction:column;overflow:hidden;}
+#editor-mount{flex:1;min-height:0;overflow:hidden;}
+
+/* Resize bar */
+.rbar{height:4px;cursor:ns-resize;background:transparent;flex-shrink:0;transition:background var(--trans);}
+.rbar:hover{background:var(--accent);}
+
+/* ── PANEL ─────────────────────────────────────────────────────────────── */
+.panel{
+  height:210px;background:var(--bg2);
+  border-top:1px solid var(--border);
+  display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;
+}
+.panel-tabs{
+  display:flex;align-items:center;gap:2px;
+  padding:0 10px;height:32px;
+  border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.pt{
+  display:flex;align-items:center;gap:4px;
+  padding:3px 10px;border-radius:5px;
+  font-family:var(--mono);font-size:11px;color:var(--text3);
+  cursor:pointer;transition:all var(--trans);
+}
+.pt:hover{color:var(--text2);background:var(--bg3);}
+.pt.active{background:var(--bg3);color:var(--text);}
+.pt .pd{width:5px;height:5px;border-radius:50%;}
+.p-tools{margin-left:auto;display:flex;gap:3px;}
+.ib{
+  width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+  border-radius:4px;color:var(--text3);font-size:11px;transition:all var(--trans);
+}
+.ib:hover{background:var(--bg3);color:var(--text);}
+
+.pane{flex:1;overflow-y:auto;padding:8px 12px;display:none;flex-direction:column;gap:1px;}
+.pane.visible{display:flex;}
+
+/* Output lines */
+.ol{display:flex;gap:8px;font-family:var(--mono);font-size:13px;line-height:1.65;word-break:break-all;}
+.ol.stdout{color:var(--text);}
+.ol.stderr{color:var(--red);}
+.ol.info  {color:var(--text3);}
+.ol.success{color:var(--green);}
+.ol.warn  {color:var(--yellow);}
+.ol.sys   {color:var(--accent);}
+.op{color:var(--text3);font-size:11px;min-width:12px;padding-top:2px;flex-shrink:0;}
+
+/* ── TERMINAL ──────────────────────────────────────────────────────────── */
+.term-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.term-out{
+  flex:1;overflow-y:auto;padding:8px 12px;
+  font-family:var(--mono);font-size:13px;line-height:1.65;color:var(--text);
+}
+.tl{display:flex;gap:8px;}
+.tl.out {color:var(--text);}
+.tl.in  {color:var(--green);}
+.tl.sys {color:var(--text3);font-style:italic;}
+.tl.err {color:var(--red);}
+.tp{min-width:14px;color:var(--text3);flex-shrink:0;}
+
+.term-row{
+  display:flex;align-items:center;gap:8px;
+  padding:6px 12px;border-top:1px solid var(--border);
+  background:var(--bg);flex-shrink:0;
+}
+.term-sym{font-family:var(--mono);font-size:13px;color:var(--green);flex-shrink:0;}
+.term-in{
+  flex:1;background:transparent;border:none;
+  font-family:var(--mono);font-size:13px;color:var(--text);
+  caret-color:var(--accent);
+}
+.term-in::placeholder{color:var(--text3);}
+.term-in:disabled{opacity:0.35;}
+.term-btn{
+  padding:3px 11px;border-radius:5px;
+  background:var(--accent-mute);color:var(--accent);
+  border:1px solid var(--border2);font-family:var(--mono);font-size:11px;
+  transition:all var(--trans);
+}
+.term-btn:hover:not(:disabled){background:var(--accent);color:#fff;}
+.term-btn:disabled{opacity:0.3;cursor:not-allowed;}
+
+/* ── STATUS ────────────────────────────────────────────────────────────── */
+.statusbar{
+  grid-area:status;background:var(--accent-dim);
+  display:flex;align-items:center;gap:14px;padding:0 14px;
+  font-family:var(--mono);font-size:11px;color:rgba(255,255,255,0.65);
+}
+.statusbar .sr{margin-left:auto;display:flex;gap:14px;}
+.ssep{color:rgba(255,255,255,0.2);}
+
+/* ── MODAL ─────────────────────────────────────────────────────────────── */
+.modal-bg{
+  position:fixed;inset:0;background:rgba(0,0,0,0.55);backdrop-filter:blur(3px);
+  display:flex;align-items:center;justify-content:center;
+  z-index:500;opacity:0;pointer-events:none;transition:opacity var(--trans);
+}
+.modal-bg.open{opacity:1;pointer-events:all;}
+.modal{
+  background:var(--bg2);border:1px solid var(--border2);
+  border-radius:12px;width:500px;padding:24px;
+  box-shadow:0 24px 64px rgba(0,0,0,0.4);
+  transform:translateY(8px);transition:transform var(--trans);
+}
+.modal-bg.open .modal{transform:none;}
+.modal h2{font-size:17px;font-weight:600;margin-bottom:6px;}
+.modal p{font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:14px;}
+.modal label{font-size:11px;font-family:var(--mono);color:var(--text2);display:block;margin-bottom:4px;}
+.modal input{
+  width:100%;background:var(--bg3);border:1px solid var(--border2);
+  border-radius:6px;padding:8px 11px;
+  font-family:var(--mono);font-size:13px;color:var(--text);
+  margin-bottom:14px;transition:border-color var(--trans);
+}
+.modal input:focus{border-color:var(--accent);}
+.cb{
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:7px;padding:11px 13px;
+  font-family:var(--mono);font-size:11.5px;color:var(--text2);
+  line-height:1.9;margin-bottom:16px;
+}
+.cb .cc{color:var(--text3);}
+.cb .ck{color:var(--green);}
+.cb .cs{color:var(--yellow);}
+.mrow{display:flex;gap:8px;}
+.mrow .btn{flex:1;justify-content:center;}
+
+/* ── SPINNER ───────────────────────────────────────────────────────────── */
+@keyframes spin{to{transform:rotate(360deg);}}
+.spin{width:12px;height:12px;border:2px solid rgba(255,255,255,0.25);border-top-color:#fff;border-radius:50%;animation:spin 0.6s linear infinite;}
+
+/* ── TOAST ─────────────────────────────────────────────────────────────── */
+.toast{
+  position:fixed;bottom:34px;right:18px;
+  background:var(--bg2);border:1px solid var(--border2);
+  border-radius:8px;padding:9px 15px;
+  font-family:var(--mono);font-size:12px;color:var(--text);
+  box-shadow:0 6px 24px rgba(0,0,0,0.3);z-index:600;
+  opacity:0;transform:translateY(5px);
+  transition:all 0.2s;pointer-events:none;
+}
+.toast.show{opacity:1;transform:none;}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- ── HEADER ─────────────────────────────────────────────────────────── -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-icon">
+      <!-- V chevron wordmark -->
+      <svg viewBox="0 0 16 16"><polyline points="2,3 8,13 14,3"/></svg>
+    </div>
+    <span class="logo-text">velocity</span>
+  </div>
+  <div class="vsep"></div>
+
+  <div class="tabs" id="tabs"></div>
+  <button class="new-tab" title="New file" onclick="newFile()">+</button>
+
+  <div class="vsep"></div>
+  <div class="h-right">
+    <button class="theme-btn" onclick="toggleTheme()" id="theme-btn">
+      <!-- moon icon -->
+      <svg viewBox="0 0 24 24" id="theme-icon"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <span id="theme-lbl">dark</span>
+    </button>
+    <button class="btn btn-ghost" style="font-size:12px;padding:5px 11px" onclick="openModal()">⚙ Backend</button>
+    <button class="btn btn-primary" id="run-btn" onclick="runCode()">
+      ▶ Run <span class="kbd">Ctrl+↵</span>
+    </button>
+  </div>
+</header>
+
+<!-- ── ACTIVITY BAR ───────────────────────────────────────────────────── -->
+<div class="actbar">
+  <!-- Files -->
+  <button class="ab-btn active" id="ab-files" title="Files" onclick="switchSidebar('files')">
+    <svg viewBox="0 0 24 24"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+  </button>
+  <!-- Docs -->
+  <button class="ab-btn" id="ab-docs" title="Language reference" onclick="switchSidebar('docs')">
+    <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+  </button>
+  <!-- Run options -->
+  <button class="ab-btn" id="ab-opts" title="Run options" onclick="switchSidebar('opts')">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+  </button>
+</div>
+
+<!-- ── SIDEBAR ────────────────────────────────────────────────────────── -->
+<aside class="sidebar">
+
+  <!-- FILES panel -->
+  <div class="sidebar-panel visible" id="sp-files">
+    <div class="sb-head">
+      <span>Explorer</span>
+      <button onclick="newFile()" title="New file">+</button>
+    </div>
+    <div class="file-list" id="file-list"></div>
+  </div>
+
+  <!-- DOCS panel -->
+  <div class="sidebar-panel" id="sp-docs">
+    <div class="sb-head"><span>Language Reference</span></div>
+    <div class="docs-scroll">
+
+      <div class="doc-section">
+        <div class="doc-section-title">Keywords</div>
+        <div class="kw-grid" id="kw-grid"></div>
+      </div>
+
+      <div class="doc-section">
+        <div class="doc-section-title">Types</div>
+        <table class="type-table" id="type-table"></table>
+      </div>
+
+      <div class="doc-section">
+        <div class="doc-section-title">Syntax</div>
+        <div id="syn-rows"></div>
+      </div>
+
+      <div class="doc-section">
+        <div class="doc-section-title">stdlib modules</div>
+        <div id="mod-rows"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RUN OPTIONS panel -->
+  <div class="sidebar-panel" id="sp-opts">
+    <div class="sb-head"><span>Run Options</span></div>
+    <div class="run-opts">
+      <div class="opt-label">Compiler flags</div>
+      <input class="opt-input" id="opt-flags" placeholder="-v" title="Extra flags passed to ./velocity">
+      <div class="opt-hint">e.g. -v &nbsp;(verbose, keeps .asm/.o)</div>
+
+      <div class="s-sep" style="margin:4px 0"></div>
+
+      <div class="opt-label">Runtime arguments</div>
+      <input class="opt-input" id="opt-args" placeholder="arg1 arg2 ..." title="Arguments passed to compiled binary">
+      <div class="opt-hint">accessible via system.argv</div>
+
+      <div class="s-sep" style="margin:4px 0"></div>
+
+      <div class="opt-label">Stdin (one line per row)</div>
+      <textarea class="opt-input" id="opt-stdin" rows="4"
+        placeholder="line1&#10;line2&#10;..."
+        style="resize:vertical;line-height:1.6;"></textarea>
+      <div class="opt-hint">sent to io.stdin() / io.input()</div>
+    </div>
+  </div>
+
+</aside>
+
+<!-- ── BODY ───────────────────────────────────────────────────────────── -->
+<div class="body">
+  <div id="editor-mount"></div>
+  <div class="rbar" id="rbar"></div>
+
+  <!-- Panel -->
+  <div class="panel" id="panel">
+    <div class="panel-tabs">
+      <div class="pt active" data-p="output" onclick="switchPane('output')">
+        <span class="pd" style="background:var(--green)"></span>output
+      </div>
+      <div class="pt" data-p="terminal" onclick="switchPane('terminal')">
+        <span class="pd" style="background:var(--yellow)"></span>terminal
+      </div>
+      <div class="pt" data-p="compile" onclick="switchPane('compile')">
+        <span class="pd" style="background:var(--text3)"></span>compile log
+      </div>
+      <div class="p-tools">
+        <button class="ib" title="Clear" onclick="clearPanes()">✕</button>
+        <button class="ib" title="Expand" onclick="expandPanel()">⤢</button>
+      </div>
+    </div>
+
+    <!-- Output -->
+    <div class="pane visible" id="pane-output"></div>
+
+    <!-- Terminal (live stdin) -->
+    <div class="pane" id="pane-terminal" style="padding:0;gap:0;">
+      <div class="term-wrap">
+        <div class="term-out" id="term-out"></div>
+        <div class="term-row">
+          <span class="term-sym">›</span>
+          <input class="term-in" id="term-in" placeholder="stdin input…" disabled
+            onkeydown="if(event.key==='Enter'){event.preventDefault();sendStdin();}">
+          <button class="term-btn" id="term-btn" onclick="sendStdin()" disabled>Send</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Compile log -->
+    <div class="pane" id="pane-compile"></div>
+  </div>
+</div>
+
+<!-- ── STATUS ─────────────────────────────────────────────────────────── -->
+<div class="statusbar">
+  <span>Velocity 0.1.1</span>
+  <span class="ssep">|</span>
+  <span id="sb-cur">Ln 1, Col 1</span>
+  <span class="ssep">|</span>
+  <span id="sb-file">main.vel</span>
+  <div class="sr"><span id="sb-msg">Ready</span></div>
+</div>
+
+<!-- ── BACKEND MODAL ─────────────────────────────────────────────────── -->
+<div class="modal-bg" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h2>Backend</h2>
+    <p>The IDE sends your code to a local server running the Velocity compiler. Without a backend configured, the Run button does nothing.</p>
+    <label>Compile endpoint URL</label>
+    <input id="api-in" type="url" placeholder="http://localhost:8080/compile">
+    <div class="cb">
+      <span class="cc"># Expected POST body</span><br>
+      <span class="cs">{ code, flags, args, stdin[] }</span><br><br>
+      <span class="cc"># Expected response</span><br>
+      <span class="cs">{ stdout, stderr, compileLog, exit }</span>
+    </div>
+    <div class="mrow">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveBackend()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ── MONACO ─────────────────────────────────────────────────────────── -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+<script>
+'use strict';
+
+// ── DOCS DATA ──────────────────────────────────────────────────────────────
+const KEYWORDS = [
+  ['kar','fn'],['chu','return'],['ath','let'],['mut','mut'],
+  ['agar','if'],['nate','else'],['yeli','while'],['bar','for'],
+  ['manz','in'],['by','step'],['phutraw','break'],['pakh','continue'],
+  ['anaw','import'],['bina','struct'],['poz','true'],['apuz','false'],
+];
+const TYPES = [
+  ['adad','i32 — 32-bit signed integer'],
+  ['ashari','f64 — 64-bit float'],
+  ['ashari32','f32 — 32-bit float'],
+  ['bool','boolean — poz / apuz'],
+  ['lafz','UTF-8 string'],
+  ['T?','optional / nullable'],
+  ['[T]','dynamic array'],
+  ['[T; N]','fixed-size array'],
+  ['(A, B)','tuple'],
+];
+const SYNTAX = [
+  ['ath x = 5;','immutable variable'],
+  ['ath mut x = 5;','mutable variable'],
+  ['ath x: adad = 5;','typed variable'],
+  ['kar f(x: adad) -> adad { … }','function definition'],
+  ['agar cond { … } nate { … }','if / else'],
+  ['yeli cond { … }','while loop'],
+  ['bar i manz 0..10 { … }','for range (exclusive)'],
+  ['bar i manz 0..=10 { … }','for range (inclusive)'],
+  ['bar i manz 10..=0 by -1 { … }','range with step'],
+  ['bar e in arr { … }','for-in array'],
+  ['map(arr, |x| x * 2)','map with lambda'],
+  ['filter(arr, |x| x > 0)','filter with lambda'],
+  ['len(arr)','array length'],
+  ['bina Point { x: ashari32; }','struct definition'],
+  ['Point { x: 1.0 }','struct literal'],
+  ['p.x','field access'],
+];
+const MODULES = [
+  ['io','chhaap, stdin, input, chhaapLine'],
+  ['math','mul_chohrus(sqrt), mutlaq(abs), shakti(pow), fibonacci, awwal_chu(isPrime), mushtarak_qasim(gcd)'],
+  ['lafz','len, concat, slice, eq, from_adad, from_ashari'],
+  ['time','ASM-backed time utilities'],
+  ['random','ASM-backed RNG'],
+  ['system','argv — runtime arguments'],
+  ['linalg','Point2, add, sub, dot, cross, normalize, lerp, distance'],
+  ['sdl','SDL2 graphics bindings'],
+];
+
+// ── STATE ──────────────────────────────────────────────────────────────────
+let editor = null;
+let apiUrl = localStorage.getItem('vel-api') || '';
+let isDark  = (localStorage.getItem('vel-theme') || 'dark') === 'dark';
+let running = false;
+let stdinResolve = null;
+
+// File system
+let fileSeq = 1;
+let files = {};          // id -> { name, model, dirty }
+let activeId = null;
+
+// ── BOOT ───────────────────────────────────────────────────────────────────
+applyTheme();
+buildDocs();
+
+require.config({ paths:{ vs:'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+require(['vs/editor/editor.main'], () => {
+  registerLanguage();
+  buildThemes();
+  editor = monaco.editor.create(document.getElementById('editor-mount'), {
+    language:'velocity',
+    theme: isDark ? 'vel-dark' : 'vel-light',
+    fontSize:14, fontFamily:"'JetBrains Mono',monospace", fontLigatures:true,
+    lineHeight:22, padding:{top:14,bottom:14},
+    minimap:{enabled:true,scale:1},
+    scrollBeyondLastLine:false, smoothScrolling:true,
+    cursorBlinking:'smooth', cursorSmoothCaretAnimation:'on',
+    bracketPairColorization:{enabled:true},
+    automaticLayout:true, wordWrap:'on', tabSize:4,
+  });
+  editor.onDidChangeCursorPosition(e => {
+    document.getElementById('sb-cur').textContent = `Ln ${e.position.lineNumber}, Col ${e.position.column}`;
+  });
+  editor.onDidChangeModelContent(() => { if(activeId) markDirty(activeId); });
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, runCode);
+
+  createFile('main.vel', defaultCode());
+  updateBeStatus();
+  appendOut('output','sys','Ready — configure backend in ⚙ Backend then hit Run');
+});
+
+function defaultCode() {
+  return `anaw io;\n\nkar main() -> adad {\n    io.chhaap("Salaam Duniya!\\n");\n    chu 0;\n}`;
+}
+
+// ── LANGUAGE ───────────────────────────────────────────────────────────────
+function registerLanguage() {
+  monaco.languages.register({id:'velocity'});
+  monaco.languages.setMonarchTokensProvider('velocity',{
+    keywords:['kar','chu','ath','mut','agar','nate','yeli','bar','manz','in','by','phutraw','pakh','anaw','bina','poz','apuz','null'],
+    typeKeywords:['adad','ashari','ashari32','bool','lafz'],
+    tokenizer:{root:[
+      [/#.*$/,'comment'],
+      [/"([^"\\]|\\.)*"/,'string'],
+      [/\d+\.\d*/,'number.float'],
+      [/\d+/,'number'],
+      [/[a-zA-Z_]\w*/,{cases:{'@keywords':'keyword','@typeKeywords':'type','@default':'identifier'}}],
+      [/[{}()\[\]]/,'@brackets'],
+      [/[;:,.]/,'delimiter'],
+      [/->|\.\.=?|\|/,'operator'],
+      [/[=!<>+\-*\/%]/,'operator'],
+    ]}
+  });
+  monaco.languages.setLanguageConfiguration('velocity',{
+    comments:{lineComment:'#'},
+    brackets:[['{','}'],[`(`,`)`],['[',']']],
+    autoClosingPairs:[{open:'{',close:'}'},{open:'(',close:')'},{open:'[',close:']'},{open:'"',close:'"'}],
+  });
+}
+
+function buildThemes() {
+  const rules = [
+    {token:'comment',    foreground:'4a5270', fontStyle:'italic'},
+    {token:'keyword',    foreground:'8b82f5', fontStyle:'bold'},
+    {token:'type',       foreground:'5bb8e8'},
+    {token:'string',     foreground:'d4a843'},
+    {token:'number',     foreground:'45b87a'},
+    {token:'number.float',foreground:'45b87a'},
+    {token:'identifier', foreground:'c9cdd8'},
+    {token:'operator',   foreground:'555e78'},
+    {token:'delimiter',  foreground:'3a4258'},
+  ];
+  monaco.editor.defineTheme('vel-dark',{
+    base:'vs-dark', inherit:true, rules,
+    colors:{
+      'editor.background':'#111318','editor.foreground':'#c9cdd8',
+      'editorLineNumber.foreground':'#252b38','editorLineNumber.activeForeground':'#6c63ff',
+      'editor.selectionBackground':'#6c63ff25','editor.lineHighlightBackground':'#16191f',
+      'editorCursor.foreground':'#6c63ff','scrollbarSlider.background':'#252b3860',
+    }
+  });
+  monaco.editor.defineTheme('vel-light',{
+    base:'vs', inherit:true, rules:[
+      ...rules,
+      {token:'identifier',foreground:'1a1e2e'},
+    ],
+    colors:{
+      'editor.background':'#f0f2f5','editor.foreground':'#1a1e2e',
+      'editorLineNumber.foreground':'#c8ccdb','editorLineNumber.activeForeground':'#6c63ff',
+      'editor.selectionBackground':'#6c63ff20','editor.lineHighlightBackground':'#ffffff',
+      'editorCursor.foreground':'#6c63ff',
+    }
+  });
+}
+
+// ── FILE MANAGEMENT ────────────────────────────────────────────────────────
+function createFile(name, code) {
+  const id = 'f' + (fileSeq++);
+  const model = monaco.editor.createModel(code || '', 'velocity');
+  files[id] = { name, model, dirty: false };
+  switchFile(id);
+  renderFiles();
+  return id;
+}
+
+function newFile() {
+  createFile(`untitled${fileSeq}.vel`, defaultCode());
+}
+
+function switchFile(id) {
+  if (!files[id]) return;
+  activeId = id;
+  editor.setModel(files[id].model);
+  document.getElementById('sb-file').textContent = files[id].name;
+  renderFiles();
+  renderTabs();
+}
+
+function closeFile(id, e) {
+  e && e.stopPropagation();
+  if (Object.keys(files).length === 1) { toast('Cannot close last file'); return; }
+  files[id].model.dispose();
+  delete files[id];
+  const ids = Object.keys(files);
+  switchFile(ids[ids.length - 1]);
+  renderFiles(); renderTabs();
+}
+
+function markDirty(id) {
+  if (!files[id] || files[id].dirty) return;
+  files[id].dirty = true;
+  renderFiles(); renderTabs();
+}
+
+function clearDirty(id) {
+  if (!files[id]) return;
+  files[id].dirty = false;
+  renderFiles(); renderTabs();
+}
+
+function renderTabs() {
+  const el = document.getElementById('tabs');
+  el.innerHTML = '';
+  for (const [id, f] of Object.entries(files)) {
+    const d = document.createElement('div');
+    d.className = 'tab' + (id===activeId?' active':'') + (f.dirty?' dirty':'');
+    d.onclick = () => switchFile(id);
+    d.innerHTML = `<span class="dot"></span><span>${esc(f.name)}</span><span class="x" onclick="closeFile('${id}',event)">✕</span>`;
+    el.appendChild(d);
+  }
+}
+
+function renderFiles() {
+  const el = document.getElementById('file-list');
+  el.innerHTML = '';
+  for (const [id, f] of Object.entries(files)) {
+    const d = document.createElement('div');
+    d.className = 'sf' + (id===activeId?' active':'') + (f.dirty?' dirty':'');
+    d.onclick = () => switchFile(id);
+    d.innerHTML = `<span class="sf-icon">◻</span><span>${esc(f.name)}</span><span class="sf-dot"></span>`;
+    el.appendChild(d);
+  }
+}
+
+// ── THEME ──────────────────────────────────────────────────────────────────
+function applyTheme() {
+  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  const lbl = document.getElementById('theme-lbl');
+  const ico = document.getElementById('theme-icon');
+  if (lbl) lbl.textContent = isDark ? 'dark' : 'light';
+  if (ico) {
+    ico.innerHTML = isDark
+      ? '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>'
+      : '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+  }
+}
+
+function toggleTheme() {
+  isDark = !isDark;
+  localStorage.setItem('vel-theme', isDark ? 'dark' : 'light');
+  applyTheme();
+  if (editor) editor.updateOptions({ theme: isDark ? 'vel-dark' : 'vel-light' });
+}
+
+// ── SIDEBAR ────────────────────────────────────────────────────────────────
+function switchSidebar(name) {
+  ['files','docs','opts'].forEach(n => {
+    document.getElementById('sp-'+n).classList.toggle('visible', n===name);
+    document.getElementById('ab-'+n).classList.toggle('active', n===name);
+  });
+}
+
+// ── DOCS ───────────────────────────────────────────────────────────────────
+function buildDocs() {
+  // Keywords
+  const kw = document.getElementById('kw-grid');
+  KEYWORDS.forEach(([v,e]) => {
+    const d = document.createElement('div');
+    d.className = 'kw-item';
+    d.innerHTML = `<span class="kw-vel">${v}</span><span class="kw-en">${e}</span>`;
+    kw.appendChild(d);
+  });
+  // Types
+  const tt = document.getElementById('type-table');
+  TYPES.forEach(([t,d]) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${esc(t)}</td><td>${esc(d)}</td>`;
+    tt.appendChild(tr);
+  });
+  // Syntax
+  const sy = document.getElementById('syn-rows');
+  SYNTAX.forEach(([code,desc]) => {
+    const d = document.createElement('div');
+    d.className = 'doc-row';
+    d.innerHTML = `<span class="doc-code">${esc(code)}</span><span class="doc-desc">${esc(desc)}</span>`;
+    sy.appendChild(d);
+  });
+  // Modules
+  const mo = document.getElementById('mod-rows');
+  MODULES.forEach(([name,fns]) => {
+    const d = document.createElement('div');
+    d.className = 'doc-row';
+    d.innerHTML = `<span class="doc-code">anaw ${esc(name)};</span><span class="doc-desc">${esc(fns)}</span>`;
+    mo.appendChild(d);
+  });
+}
+
+// ── RUN ────────────────────────────────────────────────────────────────────
+async function runCode() {
+  if (running || !editor) return;
+
+  if (!apiUrl) {
+    toast('No backend configured — click ⚙ Backend');
+    openModal();
+    return;
+  }
+
+  running = true;
+  const btn = document.getElementById('run-btn');
+  btn.classList.add('busy');
+  btn.innerHTML = '<div class="spin"></div> Running…';
+  clearDirty(activeId);
+  setStatus('Compiling…');
+
+  // Clear panes
+  clearPanes();
+  switchPane('output');
+
+  const code   = editor.getValue();
+  const flags  = document.getElementById('opt-flags').value.trim();
+  const args   = document.getElementById('opt-args').value.trim();
+  const stdin  = document.getElementById('opt-stdin').value
+                   .split('\n').filter(l => l !== '');
+
+  try {
+    setStatus('Sending to backend…');
+    const res = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(20000),
+      body: JSON.stringify({ code, flags, args, stdin }),
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+    const data = await res.json();
+
+    // Compile log — goes only to compile pane
+    if (data.compileLog) {
+      const cl = document.getElementById('pane-compile');
+      data.compileLog.split('\n').filter(Boolean).forEach(l => {
+        appendLine(cl, l.includes('error') || l.includes('Error') ? 'stderr' : 'info', l);
+      });
+    }
+
+    // stdout → output pane only
+    const out = document.getElementById('pane-output');
+    if (data.stdout) {
+      data.stdout.split('\n').forEach((l, i, arr) => {
+        if (i < arr.length - 1 || l !== '') appendLine(out, 'stdout', l);
+      });
+    }
+    if (data.stderr) {
+      data.stderr.split('\n').filter(Boolean).forEach(l => appendLine(out, 'stderr', l));
+    }
+
+    const code0 = data.exit ?? 0;
+    appendOut('output', code0===0?'success':'stderr', `\nExited with code ${code0}`);
+    setStatus(`Done — exit ${code0}`);
+
+  } catch(err) {
+    appendOut('output', 'stderr', `Error: ${err.message}`);
+    setStatus('Failed');
+  }
+
+  running = false;
+  btn.classList.remove('busy');
+  btn.innerHTML = '▶ Run <span class="kbd">Ctrl+↵</span>';
+}
+
+// ── TERMINAL (live stdin during execution) ─────────────────────────────────
+function activateTerm() {
+  document.getElementById('term-in').disabled = false;
+  document.getElementById('term-btn').disabled = false;
+  document.getElementById('term-in').focus();
+}
+function deactivateTerm() {
+  document.getElementById('term-in').disabled = true;
+  document.getElementById('term-btn').disabled = true;
+}
+function sendStdin() {
+  const inp = document.getElementById('term-in');
+  const val = inp.value; inp.value = '';
+  if (stdinResolve) { stdinResolve(val); stdinResolve = null; }
+  appendTerm('in', '$ ' + val);
+}
+function appendTerm(cls, text) {
+  const el = document.getElementById('term-out');
+  const d = document.createElement('div');
+  d.className = 'tl ' + cls;
+  d.innerHTML = `<span class="tp">${cls==='in'?'›':cls==='sys'?'#':'›'}</span><span>${esc(text)}</span>`;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+
+// ── OUTPUT HELPERS ─────────────────────────────────────────────────────────
+const PFX = { stdout:'›', stderr:'!', info:'·', success:'✓', warn:'!', sys:'·' };
+
+function appendLine(container, cls, text) {
+  const d = document.createElement('div');
+  d.className = 'ol ' + cls;
+  d.innerHTML = `<span class="op">${PFX[cls]||'›'}</span><span>${esc(text)}</span>`;
+  container.appendChild(d);
+  container.scrollTop = container.scrollHeight;
+}
+
+function appendOut(pane, cls, text) {
+  appendLine(document.getElementById('pane-' + pane), cls, text);
+}
+
+// ── PANE MANAGEMENT ────────────────────────────────────────────────────────
+function switchPane(name) {
+  document.querySelectorAll('.pane').forEach(p => p.classList.remove('visible'));
+  document.querySelectorAll('.pt').forEach(t => t.classList.remove('active'));
+  document.getElementById('pane-'+name).classList.add('visible');
+  document.querySelector(`.pt[data-p="${name}"]`).classList.add('active');
+}
+
+function clearPanes() {
+  ['output','compile'].forEach(n => { document.getElementById('pane-'+n).innerHTML = ''; });
+  document.getElementById('term-out').innerHTML = '';
+}
+
+function expandPanel() {
+  const p = document.getElementById('panel');
+  p.style.height = p.style.height === '380px' ? '' : '380px';
+}
+
+// ── RESIZE ─────────────────────────────────────────────────────────────────
+(function() {
+  const bar = document.getElementById('rbar');
+  const panel = document.getElementById('panel');
+  let drag=false, y0=0, h0=0;
+  bar.addEventListener('mousedown', e => { drag=true; y0=e.clientY; h0=panel.offsetHeight; document.body.style.cursor='ns-resize'; e.preventDefault(); });
+  document.addEventListener('mousemove', e => { if(!drag)return; panel.style.height=Math.max(60,Math.min(520,h0+y0-e.clientY))+'px'; });
+  document.addEventListener('mouseup', () => { drag=false; document.body.style.cursor=''; });
+})();
+
+// ── MODAL ──────────────────────────────────────────────────────────────────
+function openModal()  { document.getElementById('api-in').value=apiUrl; document.getElementById('modal').classList.add('open'); }
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+function saveBackend() {
+  apiUrl = document.getElementById('api-in').value.trim();
+  localStorage.setItem('vel-api', apiUrl);
+  updateBeStatus();
+  closeModal();
+  toast(apiUrl ? 'Backend saved' : 'Backend cleared');
+}
+function updateBeStatus() {
+  const el = document.getElementById('sb-msg');
+  el.textContent = apiUrl ? 'Backend connected' : 'No backend — click ⚙';
+  el.style.color = apiUrl ? 'rgba(255,255,255,0.9)' : 'rgba(255,200,100,0.9)';
+}
+
+// ── UTILS ──────────────────────────────────────────────────────────────────
+function setStatus(m) { document.getElementById('sb-msg').textContent = m; }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.remove('show'), 2200);
+}
+</script>
+</body>
+</html>
