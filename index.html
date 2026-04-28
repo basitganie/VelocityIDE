@@ -615,7 +615,8 @@ const MODULES = [
 
 // ── STATE ──────────────────────────────────────────────────────────────────
 let editor = null;
-let apiUrl = localStorage.getItem('vel-api') || '';
+let apiUrl = localStorage.getItem('vel-api') 
+  || 'https://velocity-backend-6d48.onrender.com/compile';
 let isDark  = (localStorage.getItem('vel-theme') || 'dark') === 'dark';
 let running = false;
 let stdinResolve = null;
