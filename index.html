@@ -572,6 +572,7 @@ const KEYWORDS = [
   ['agar','if'],['nate','else'],['yeli','while'],['bar','for'],
   ['manz','in'],['by','step'],['phutraw','break'],['pakh','continue'],
   ['anaw','import'],['bina','struct'],['poz','true'],['apuz','false'],
+  ['amal', 'impl'],
 ];
 const TYPES = [
   ['adad','i32 — 32-bit signed integer'],
@@ -629,6 +630,7 @@ let activeId = null;
 // ── BOOT ───────────────────────────────────────────────────────────────────
 applyTheme();
 buildDocs();
+runCode();
 
 require.config({ paths:{ vs:'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
 require(['vs/editor/editor.main'], () => {
